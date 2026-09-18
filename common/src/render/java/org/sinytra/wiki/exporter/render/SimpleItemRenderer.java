@@ -5,16 +5,21 @@ import com.mojang.blaze3d.pipeline.RenderTarget;
 import com.mojang.blaze3d.platform.Lighting;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.renderpearl.api.commands.RenderPass;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.Projection;
 import net.minecraft.client.renderer.ProjectionMatrixBuffer;
 import net.minecraft.client.renderer.SubmitNodeStorage;
+import net.minecraft.client.renderer.feature.FeatureRenderDispatcher;
 import net.minecraft.client.renderer.item.ItemModelResolver;
 import net.minecraft.client.renderer.item.ItemStackRenderState;
 import net.minecraft.client.renderer.item.TrackingItemStackRenderState;
 import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
+
+import java.util.Optional;
+import java.util.OptionalDouble;
 
 public class SimpleItemRenderer {
     private static final int PACKED_LIGHT = 15728880;
@@ -35,13 +40,11 @@ public class SimpleItemRenderer {
         this.projection = new Projection();
         this.projection.setupOrtho(
             -10000.0F, 10000.0F, scale, scale, true
-        );;
+        );
     }
 
     public void renderItem(ItemStack stack) {
         Minecraft minecraft = Minecraft.getInstance();
-        RenderSystem.outputColorTextureOverride = this.renderTarget.getColorTextureView();
-        RenderSystem.outputDepthTextureOverride = this.renderTarget.getDepthTextureView();
         int scale = this.scale;
 
         ItemDisplayContext context = ItemDisplayContext.GUI;
@@ -65,9 +68,20 @@ public class SimpleItemRenderer {
         this.resolver.updateForTopItem(state, stack, context, null, null, 0);
         SubmitNodeStorage storage = new SubmitNodeStorage();
         state.submit(poseStack, storage, PACKED_LIGHT, OverlayTexture.NO_OVERLAY, 0);
-        minecraft.gameRenderer.featureRenderDispatcher().renderAllFeatures(storage);
 
-        RenderSystem.outputColorTextureOverride = null;
-        RenderSystem.outputDepthTextureOverride = null;
+        FeatureRenderDispatcher dispatcher = Minecraft.getInstance().gameRenderer.featureRenderDispatcher();
+        try (FeatureRenderDispatcher.PreparedFrame frame = dispatcher.prepareFrame(storage);
+             RenderPass renderPass = RenderSystem.getDevice()
+            .createCommandEncoder()
+            .createRenderPass(
+                () -> "Item render texture",
+                this.renderTarget.getColorTextureView(),
+                Optional.empty(),
+                this.renderTarget.getDepthTextureView(),
+                OptionalDouble.empty()
+            )
+        ) {
+            FeatureRenderDispatcher.renderAllFeatures(renderPass, frame);
+        }
     }
 }

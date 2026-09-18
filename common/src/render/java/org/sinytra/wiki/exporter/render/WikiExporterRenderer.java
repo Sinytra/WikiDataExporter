@@ -1,10 +1,10 @@
 package org.sinytra.wiki.exporter.render;
 
-import com.mojang.blaze3d.GpuFormat;
 import com.mojang.blaze3d.pipeline.RenderTarget;
 import com.mojang.blaze3d.pipeline.TextureTarget;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.datafixers.util.Pair;
+import com.mojang.renderpearl.api.GpuFormat;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.render.GuiRenderer;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -74,7 +74,7 @@ public class WikiExporterRenderer implements ExporterModule {
 
     private CompletableFuture<?> renderItems(List<Pair<Identifier, Item>> renderable, Path root, String subDir) {
         int resolution = this.config.resolution();
-        RenderTarget target = new TextureTarget("Wiki Exporter", resolution, resolution, true, GpuFormat.RGBA8_UNORM);
+        RenderTarget target = new TextureTarget("Wiki Exporter", resolution, resolution, GpuFormat.RGBA8_UNORM, GpuFormat.D32_FLOAT);
         SimpleItemRenderer renderer = new SimpleItemRenderer(target, 32);
 
         List<CompletableFuture<?>> list = renderable.stream()
