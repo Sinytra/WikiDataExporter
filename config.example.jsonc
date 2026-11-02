@@ -4,7 +4,8 @@
   // Enabled exporter modules
   "enabled": [
     "metadata",
-    "render"
+    "render",
+    "lang"
   ],
   // In-game ID namespaces to export from. Can be overriden in per-module configs
   "namespaces": [
@@ -18,6 +19,7 @@
       // Enable static texture exports
       "png": true
     },
-    "metadata": {}
+    "metadata": {},
+    "lang": {}
   }
 }
