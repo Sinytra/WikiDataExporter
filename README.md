@@ -43,6 +43,7 @@ Example configuration:
   // Enabled exporter modules
   "enabled": [
     "metadata",
+    "lang",
     "render"
   ],
   // Per-module config
@@ -97,6 +98,7 @@ neoForge {
 |------------|---------------------------------------------------------------------------------------|--------|
 | `render`   | Exports GUI renders of specified items/blocks                                         | CLIENT |
 | `metadata` | Exports item and block properties such as stack size, hardness, blast resistance etc. | SERVER |
+| `lang`     | Exports all loaded language files                                                     | CLIENT |
 
 ### Available system properties
 

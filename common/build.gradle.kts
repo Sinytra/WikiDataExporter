@@ -16,6 +16,10 @@ val render: SourceSet by sourceSets.creating {
     compileClasspath += sourceSets.main.get().compileClasspath
     runtimeClasspath += sourceSets.main.get().runtimeClasspath
 }
+val lang: SourceSet by sourceSets.creating {
+    compileClasspath += sourceSets.main.get().compileClasspath
+    runtimeClasspath += sourceSets.main.get().runtimeClasspath
+}
 
 neoForge {
     neoFormVersion = neo_form_version
@@ -30,12 +34,14 @@ neoForge {
 
     addModdingDependenciesTo(metadata)
     addModdingDependenciesTo(render)
+    addModdingDependenciesTo(lang)
 
     mods {
         create(mod_id) {
             sourceSet(sourceSets.main.get())
             sourceSet(metadata)
             sourceSet(render)
+            sourceSet(lang)
         }
     }
 }
@@ -47,6 +53,7 @@ dependencies {
 
     "metadataImplementation"(sourceSets.main.get().output)
     "renderImplementation"(sourceSets.main.get().output)
+    "langImplementation"(sourceSets.main.get().output)
 }
 
 configurations {
@@ -65,6 +72,7 @@ tasks {
     jar {
         from(metadata.output)
         from(render.output)
+        from(lang.output)
     }
 }
 
@@ -72,9 +80,11 @@ artifacts {
     add("commonJava", sourceSets.main.get().java.sourceDirectories.singleFile)
     add("commonJava", metadata.java.sourceDirectories.singleFile)
     add("commonJava", render.java.sourceDirectories.singleFile)
+    add("commonJava", lang.java.sourceDirectories.singleFile)
 
     add("commonResources", sourceSets.main.get().resources.sourceDirectories.singleFile)
     add("commonResources", metadata.resources.sourceDirectories.singleFile)
     add("commonResources", render.resources.sourceDirectories.singleFile)
+    add("commonResources", lang.resources.sourceDirectories.singleFile)
 }
 
