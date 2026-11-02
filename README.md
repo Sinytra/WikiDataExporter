@@ -59,6 +59,7 @@ Example configuration:
   // Enabled exporter modules
   "enabled": [
     "metadata",
+    "lang",
     "render"
   ],
   // Per-module config
