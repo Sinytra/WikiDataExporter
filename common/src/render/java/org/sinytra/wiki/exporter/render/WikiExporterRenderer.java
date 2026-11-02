@@ -11,6 +11,7 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import org.jetbrains.annotations.Nullable;
 import org.sinytra.wiki.exporter.Constants;
 import org.sinytra.wiki.exporter.platform.services.ExporterModule;
 
@@ -35,19 +36,20 @@ public class WikiExporterRenderer implements ExporterModule {
     public void run(Path output) {
         List<Pair<ResourceLocation, Item>> renderable = getRenderableItems();
         if (!renderable.isEmpty()) {
+            String subDir = System.getProperty("wiki_exporter.module.%s.output.group.items".formatted(WikiRenderModuleFactory.NAME));
 
             renderable.stream()
                 .map(p -> p.getFirst().getNamespace())
                 .forEach(n -> {
                     try {
-                        Files.createDirectories(output.resolve(n));
+                        Files.createDirectories(getOutputDir(output, n, subDir));
                     } catch (Exception e) {
                         throw new RuntimeException(e);
                     }
                 });
 
             Constants.LOG.info("Rendering {} items", renderable.size());
-            renderItems(renderable, output).join();
+            renderItems(renderable, output, subDir).join();
         }
     }
 
@@ -69,7 +71,7 @@ public class WikiExporterRenderer implements ExporterModule {
         return list;
     }
 
-    private CompletableFuture<?> renderItems(List<Pair<ResourceLocation, Item>> renderable, Path root) {
+    private CompletableFuture<?> renderItems(List<Pair<ResourceLocation, Item>> renderable, Path root, @Nullable String subDir) {
         int resolution = this.config.resolution();
         RenderTarget target = new TextureTarget(resolution, resolution, true, Minecraft.ON_OSX);
         MultiBufferSource.BufferSource bufferSource = Minecraft.getInstance().renderBuffers().bufferSource();
@@ -79,7 +81,7 @@ public class WikiExporterRenderer implements ExporterModule {
             .<CompletableFuture<?>>map(p -> {
                 ResourceLocation location = p.getFirst();
                 ItemStack stack = new ItemStack(p.getSecond());
-                Path output = root.resolve(location.getNamespace());
+                Path output = getOutputDir(root, location.getNamespace(), subDir);
 
                 return Minecraft.getInstance().submit(() -> scheduleRender(stack, target, renderer, output));
             })
@@ -108,5 +110,10 @@ public class WikiExporterRenderer implements ExporterModule {
         target.unbindWrite();
 
         ImageWriter.writeAsPNG(root, name.getPath(), target, true);
+    }
+
+    private static Path getOutputDir(Path root, String namespace, @Nullable String group) {
+        Path base = root.resolve(namespace);
+        return group != null ? base.resolve(group) : base;
     }
 }
