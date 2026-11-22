@@ -9,12 +9,15 @@ import org.slf4j.Logger;
 import java.io.Reader;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
 public class ExporterConfig {
     private static final Logger LOGGER = LogUtils.getLogger();
+    private static final String DEFAULT_OUTPUT_PATH = "wiki_exporter";
     private static final Gson GSON = new GsonBuilder()
         .setFieldNamingStrategy(FieldNamingPolicy.LOWER_CASE_WITH_UNDERSCORES)
         .create();
@@ -35,6 +38,19 @@ public class ExporterConfig {
         public <T> T getForModule(String name) {
             return (T) modules.get(name);
         }
+    }
+
+    public static MainConfig createDefault(Collection<? extends ExporterModuleFactory<?>> factories, Set<String> namespaces) {
+        Set<String> enabled = new HashSet<>();
+        Map<String, JsonElement> modules = new HashMap<>();
+        factories.forEach(factory -> {
+            enabled.add(factory.name());
+            Object defaultConfig = factory.getDefaultConfig();
+            if (defaultConfig != null) {
+                modules.put(factory.name(), GSON.toJsonTree(defaultConfig));
+            }
+        });
+        return new MainConfig(DEFAULT_OUTPUT_PATH, enabled, namespaces, modules);
     }
 
     public static MainConfig preloadConfig(Path path) {

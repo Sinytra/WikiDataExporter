@@ -19,5 +19,10 @@ public interface ExporterModuleFactory<T> {
         return true;
     }
 
+    @Nullable
+    default T getDefaultConfig() {
+        return null;
+    }
+
     ExporterModule create(ExportContext context, @Nullable T config);
 }
