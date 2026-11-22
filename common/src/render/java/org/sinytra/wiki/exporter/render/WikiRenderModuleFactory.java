@@ -25,6 +25,11 @@ public class WikiRenderModuleFactory implements ExporterModuleFactory<WikiRender
     }
 
     @Override
+    public WikiRenderModuleConfig getDefaultConfig() {
+        return new WikiRenderModuleConfig(null, 128, true, false);
+    }
+
+    @Override
     public ExporterModule create(ExportContext context, WikiRenderModuleConfig config) {
         return new WikiExporterRenderer(context.namespaces(), config);
     }
