@@ -38,7 +38,7 @@ public class WikiDataExporter {
             .map(Path::of)
             .orElseGet(() -> Services.PLATFORM.getGameDirectory().resolve(DEFAULT_PATH));
 
-        ExporterConfig.MainConfig mainConfig = ExporterConfig.preloadConfig(configPath);
+        ExporterConfig.MainConfig mainConfig = Files.exists(configPath) ? ExporterConfig.preloadConfig(configPath) : createDefaultConfig(configPath);
         Set<String> candidateModules = mainConfig.enabled();
         LOGGER.info("Candidate modules: {}", candidateModules);
 
@@ -83,6 +83,21 @@ public class WikiDataExporter {
         if (FUTURES.isEmpty()) {
             exit(isClient);
         }
+    }
+
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    private static ExporterConfig.MainConfig createDefaultConfig(Path configPath) {
+        LOGGER.info("No exporter config found at {}, using default configuration", configPath);
+
+        Set<String> namespaces = new HashSet<>(Services.PLATFORM.getInDevModIds());
+        namespaces.remove(Constants.MOD_ID);
+        if (namespaces.isEmpty()) {
+            LOGGER.warn("Could not detect any mods in development, nothing will be exported");
+        } else {
+            LOGGER.info("Detected mods in development: {}", namespaces);
+        }
+
+        return ExporterConfig.createDefault((List) Services.MODULE_FACTORIES, namespaces);
     }
 
     private static void exit(boolean isClient) {

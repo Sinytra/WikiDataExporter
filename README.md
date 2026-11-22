@@ -50,6 +50,11 @@ When copying this file, please remove the comments and use the `.json` extension
 By default, the exporter will look for the configuration file at `run/wiki_exporter/config.json`, but you can define
 your own file path using the `wiki_exporter.config.path` system property. See below for details.
 
+If no configuration file is found, the exporter uses a default configuration that enables all modules and exports
+content from the mod you're developing.
+
+Defaults for the `render` module are 128x128 PNG images.
+
 Example configuration:
 
 ```json5
