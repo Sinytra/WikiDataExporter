@@ -1,5 +1,8 @@
 package org.sinytra.wiki.exporter.neoforge;
 
+import net.minecraft.server.WorldLoader;
+import net.minecraft.server.packs.repository.ServerPacksSource;
+import net.minecraft.world.level.WorldDataConfiguration;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.fml.ModList;
 import net.neoforged.fml.loading.FMLEnvironment;
@@ -28,5 +31,10 @@ public class NeoForgePlatformHelper implements IPlatformHelper {
     @Override
     public boolean isClient() {
         return FMLEnvironment.getDist() == Dist.CLIENT;
+    }
+
+    @Override
+    public WorldLoader.PackConfig createServerPackConfig() {
+        return new WorldLoader.PackConfig(ServerPacksSource.createVanillaTrustedRepository(), WorldDataConfiguration.DEFAULT, false, true);
     }
 }
