@@ -8,6 +8,7 @@ import net.neoforged.neoforgespi.language.IModInfo;
 import org.sinytra.wiki.exporter.platform.services.IPlatformHelper;
 
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -15,7 +16,7 @@ public class NeoForgePlatformHelper implements IPlatformHelper {
     @Override
     public Set<String> getInDevModIds() {
         return ModList.get().getMods().stream()
-            .filter(m -> IPlatformHelper.isLoadedFromDir(m.getOwningFile().getFile().getContents().getContentRoots()))
+            .filter(m -> IPlatformHelper.isLoadedFromDir(List.of(m.getOwningFile().getFile().getFilePath())))
             .map(IModInfo::getModId)
             .collect(Collectors.toSet());
     }
