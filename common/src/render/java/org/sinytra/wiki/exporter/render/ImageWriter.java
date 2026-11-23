@@ -10,12 +10,14 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.file.Path;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class ImageWriter {
     private static final Logger LOGGER = LoggerFactory.getLogger(ImageWriter.class);
 
-    public static void writeAsPNG(Path root, String filename, GpuTexture texture, boolean flipY) {
+    public static CompletableFuture<Void> writeAsPNG(Path root, String filename, GpuTexture texture, boolean flipY) {
+        CompletableFuture<Void> future = new CompletableFuture<>();
         int i = texture.getFormat().pixelSize() * texture.getWidth(0) * texture.getHeight(0);
 
         GpuBuffer gpuBuffer = RenderSystem.getDevice().createBuffer(() -> "Texture output buffer", 9, i);
@@ -44,7 +46,11 @@ public class ImageWriter {
                 LOGGER.error("Unable to write: ", exception);
             }
 
-            gpuBuffer.close();
+            try {
+                gpuBuffer.close();
+            } finally {
+                future.complete(null);
+            }
         };
         AtomicInteger atomicInteger = new AtomicInteger();
 
@@ -53,5 +59,7 @@ public class ImageWriter {
                 runnable.run();
             }
         }, 0);
+
+        return future;
     }
 }

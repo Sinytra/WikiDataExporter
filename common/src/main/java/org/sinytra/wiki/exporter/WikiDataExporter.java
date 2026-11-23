@@ -10,7 +10,6 @@ import org.slf4j.Logger;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
-import java.util.concurrent.CompletableFuture;
 
 public class WikiDataExporter {
     private static final String EXPORTER_ENABLED_PROPERTY = "wiki_exporter.enabled";
@@ -19,11 +18,10 @@ public class WikiDataExporter {
     private static final String BASE_DIR = "wiki_exporter";
     private static final String DEFAULT_OUTPUT = BASE_DIR + "/output";
     private static final String DEFAULT_PATH = BASE_DIR + "/config.json";
-    private static final Map<String, ModuleInstance> MODULES = new HashMap<>();
-    private static final Map<String, CompletableFuture<Void>> FUTURES = new HashMap<>();
+    private static final List<ModuleInstance> MODULES = new ArrayList<>();
     private static final Logger LOGGER = LogUtils.getLogger();
 
-    private static MinecraftServer server;
+    private static boolean enabled;
     private static Path outputPath;
 
     @SuppressWarnings({"unchecked", "rawtypes"})
@@ -43,9 +41,13 @@ public class WikiDataExporter {
         LOGGER.info("Candidate modules: {}", candidateModules);
 
         Map<String, ExporterModuleFactory<?>> enabledFactories = new HashMap<>();
+        List<ExporterModuleFactory<?>> sortedFactories = new ArrayList<>();
         Services.MODULE_FACTORIES.stream()
             .filter(m -> candidateModules.contains(m.name()) && m.isEnabled(isClient))
-            .forEach(factory -> enabledFactories.put(factory.name(), factory));
+            .forEach(factory -> {
+                enabledFactories.put(factory.name(), factory);
+                sortedFactories.add(factory);
+            });
         ExporterConfig.LoadedConfig config = ExporterConfig.load(mainConfig, enabledFactories);
 
         outputPath = Optional.ofNullable(mainConfig.outputPath())
@@ -60,29 +62,21 @@ public class WikiDataExporter {
 
         Set<String> globalNamespaces = config.global().namespaces();
 
-        enabledFactories.forEach((name, factory) -> {
-            Object moduleConfig = config.getForModule(name);
+        sortedFactories.forEach(factory -> {
+            Object moduleConfig = config.getForModule(factory.name());
             Set<String> moduleNamespaces = moduleConfig instanceof NamespacedModuleConfig nc
                 ? Objects.requireNonNullElse(nc.namespaces(), globalNamespaces) : globalNamespaces;
             ExportContext context = new ExportContext(moduleNamespaces);
 
-            ModuleInstance instance = new ModuleInstance(factory, ((ExporterModuleFactory) factory).create(context, moduleConfig));
-            MODULES.put(factory.name(), instance);
+            MODULES.add(new ModuleInstance(factory, ((ExporterModuleFactory) factory).create(context, moduleConfig)));
         });
 
-        LOGGER.info("Found modules: {}", MODULES.keySet());
+        LOGGER.info("Found modules: {}", MODULES.stream().map(m -> m.factory().name()).toList());
+        enabled = true;
+    }
 
-        MODULES.forEach((name, module) -> FUTURES.put(
-            name,
-            new CompletableFuture<>()
-        ));
-
-        CompletableFuture.allOf(FUTURES.values().toArray(new CompletableFuture[0]))
-            .thenRunAsync(() -> exit(isClient));
-
-        if (FUTURES.isEmpty()) {
-            exit(isClient);
-        }
+    public static boolean isEnabled() {
+        return enabled;
     }
 
     @SuppressWarnings({"unchecked", "rawtypes"})
@@ -100,48 +94,40 @@ public class WikiDataExporter {
         return ExporterConfig.createDefault((List) Services.MODULE_FACTORIES, namespaces);
     }
 
-    private static void exit(boolean isClient) {
-        LOGGER.info("Finished running all modules, shutting down");
+    public static void runModules() {
+        for (ModuleInstance module : MODULES) {
+            runModule(module);
+        }
+        LOGGER.info("Finished running all modules");
+    }
 
-        if (isClient) {
-            WikiDataExporterClient.finishRunning();
-        } else if (server != null) {
-            server.halt(false);
-        } else {
-            System.exit(0);
+    private static void runModule(ModuleInstance module) {
+        String name = module.factory().name();
+        try {
+            Path moduleOutputPath = Optional.ofNullable(System.getProperty("wiki_exporter.module." + name + ".output.path"))
+                .map(Path::of)
+                .orElseGet(() -> outputPath.resolve(name));
+            Files.createDirectories(moduleOutputPath);
+
+            LOGGER.info("Running module {}", name);
+            module.instance().run(moduleOutputPath);
+
+            LOGGER.info("Finished running module {}", name);
+        } catch (Exception e) {
+            LOGGER.error("Error running module {}", name, e);
         }
     }
 
-    public static void runModule(String name) {
-        Optional.ofNullable(MODULES.get(name))
-            .ifPresent(module -> {
-                CompletableFuture<Void> future = FUTURES.get(name);
+    public static void onServerStarted(MinecraftServer server) {
+        if (!enabled || Services.PLATFORM.isClient()) {
+            return;
+        }
 
-                try {
-                    Path moduleOutputPath = Optional.ofNullable(System.getProperty("wiki_exporter.module." + name + ".output.path"))
-                        .map(Path::of)
-                        .orElseGet(() -> outputPath.resolve(name));
-                    Files.createDirectories(moduleOutputPath);
-
-                    module.instance().run(moduleOutputPath);
-
-                    LOGGER.info("Finished running module {}", module.factory().name());
-                    if (future != null) {
-                        future.complete(null);
-                    }
-                } catch (Exception e) {
-                    LOGGER.info("Error running module {}", module.factory().name(), e);
-                    if (future != null) {
-                        future.completeExceptionally(e);
-                    }
-                }
-            });
+        runModules();
+        LOGGER.info("Shutting down");
+        server.halt(false);
     }
 
-    public static void setServer(MinecraftServer server) {
-        WikiDataExporter.server = server;
-    }
-
-    record ModuleInstance(ExporterModuleFactory<?> factory, ExporterModule instance) {
+    private record ModuleInstance(ExporterModuleFactory<?> factory, ExporterModule instance) {
     }
 }
