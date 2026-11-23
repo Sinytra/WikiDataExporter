@@ -2,7 +2,8 @@
 
 A minimal mod to render and export item assets and other useful information from mods.
 
-Made for [Modded Minecraft Wiki](https://moddedmc.wiki) authors.
+Made for [Modded Minecraft Wiki](https://moddedmc.wiki) authors. Use in combination with the wiki
+[Gradle plugin](https://github.com/Sinytra/WikiToolkit) to configure automatically and export everything in one click.
 
 ## Installation
 
@@ -75,9 +76,10 @@ We recommend creating a separate run configuration for the exporter.
 
 The exporter will run automatically when the game launches, and will close it once all exports are complete.
 
-Certain modules, such as `render`, will only run on client instances.
+All modules can run on the client. Once the game is loaded, the exporter loads server data without creating a world,
+then runs enabled modules and exits the game.
 
-Example configuration using NeoForge ModDevGradle:
+Example configuration using NeoForge with ModDevGradle:
 
 ```groovy
 neoForge {
@@ -86,6 +88,16 @@ neoForge {
             client()
             systemProperty 'wiki_exporter.enabled', 'true'
         }
+    }
+}
+```
+
+The exporter can also run on a dedicated server, in which case only modules that support the server side will run
+(see table below).
+
+```groovy
+neoForge {
+    runs {
         exportServer {
             server()
             programArgument 'nogui'
@@ -102,7 +114,7 @@ neoForge {
 | ID         | Description                                                                           | Side   |
 |------------|---------------------------------------------------------------------------------------|--------|
 | `render`   | Exports GUI renders of specified items/blocks                                         | CLIENT |
-| `metadata` | Exports item and block properties such as stack size, hardness, blast resistance etc. | SERVER |
+| `metadata` | Exports item and block properties such as stack size, hardness, blast resistance etc. | BOTH   |
 | `lang`     | Exports all loaded language files                                                     | CLIENT |
 
 ### Available system properties

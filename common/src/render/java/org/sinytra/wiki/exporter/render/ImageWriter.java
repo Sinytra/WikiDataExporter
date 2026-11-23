@@ -8,11 +8,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.nio.file.Path;
+import java.util.concurrent.CompletableFuture;
 
 public class ImageWriter {
     private static final Logger LOGGER = LoggerFactory.getLogger(ImageWriter.class);
 
-    public static void writeAsPNG(Path root, String filename, RenderTarget target, boolean flipY) {
+    public static CompletableFuture<Void> writeAsPNG(Path root, String filename, RenderTarget target, boolean flipY) {
         int width = target.width;
         int height = target.height;
         NativeImage image = new NativeImage(width, height, false);
@@ -22,7 +23,7 @@ public class ImageWriter {
             image.flipY();
         }
 
-        Util.ioPool().execute(() -> {
+        return CompletableFuture.runAsync(() -> {
             try {
                 Path path = root.resolve(filename + ".png");
                 image.writeToFile(path);
@@ -30,6 +31,6 @@ public class ImageWriter {
             } catch (Exception exception) {
                 LOGGER.error("Unable to write: ", exception);
             }
-        });
+        }, Util.ioPool());
     }
 }

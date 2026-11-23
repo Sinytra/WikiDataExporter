@@ -13,11 +13,6 @@ public class WikiMetadataModuleFactory implements ExporterModuleFactory<WikiMeta
         return NAME;
     }
 
-    @Override
-    public boolean isEnabled(boolean client) {
-        return !client;
-    }
-
     @Nullable
     @Override
     public Class<WikiMetadataModuleConfig> getConfigClass() {

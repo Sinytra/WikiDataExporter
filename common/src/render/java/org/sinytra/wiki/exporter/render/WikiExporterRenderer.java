@@ -33,24 +33,23 @@ public class WikiExporterRenderer implements ExporterModule {
     }
 
     @Override
-    public void run(Path output) {
-        List<Pair<ResourceLocation, Item>> renderable = getRenderableItems();
-        if (!renderable.isEmpty()) {
-            String subDir = System.getProperty("wiki_exporter.module.%s.output.group.items".formatted(WikiRenderModuleFactory.NAME));
-
-            renderable.stream()
-                .map(p -> p.getFirst().getNamespace())
-                .forEach(n -> {
-                    try {
-                        Files.createDirectories(getOutputDir(output, n, subDir));
-                    } catch (Exception e) {
-                        throw new RuntimeException(e);
-                    }
-                });
-
-            Constants.LOG.info("Rendering {} items", renderable.size());
-            renderItems(renderable, output, subDir).join();
+    public void run(Path output) throws Exception {
+        if (!this.config.png()) {
+            return;
         }
+
+        List<Pair<ResourceLocation, Item>> renderable = getRenderableItems();
+        if (renderable.isEmpty()) {
+            return;
+        }
+
+        String subDir = System.getProperty("wiki_exporter.module.%s.output.group.items".formatted(WikiRenderModuleFactory.NAME));
+        for (String namespace : renderable.stream().map(p -> p.getFirst().getNamespace()).distinct().toList()) {
+            Files.createDirectories(getOutputDir(output, namespace, subDir));
+        }
+
+        Constants.LOG.info("Rendering {} items", renderable.size());
+        renderItems(renderable, output, subDir);
     }
 
     private List<Pair<ResourceLocation, Item>> getRenderableItems() {
@@ -71,32 +70,22 @@ public class WikiExporterRenderer implements ExporterModule {
         return list;
     }
 
-    private CompletableFuture<?> renderItems(List<Pair<ResourceLocation, Item>> renderable, Path root, @Nullable String subDir) {
+    private void renderItems(List<Pair<ResourceLocation, Item>> renderable, Path root, @Nullable String subDir) {
+        Minecraft minecraft = Minecraft.getInstance();
         int resolution = this.config.resolution();
-        RenderTarget target = new TextureTarget(resolution, resolution, true, Minecraft.ON_OSX);
-        MultiBufferSource.BufferSource bufferSource = Minecraft.getInstance().renderBuffers().bufferSource();
+        RenderTarget target = minecraft.submit(() -> new TextureTarget(resolution, resolution, true, Minecraft.ON_OSX)).join();
+        MultiBufferSource.BufferSource bufferSource = minecraft.renderBuffers().bufferSource();
         SimpleItemRenderer renderer = new SimpleItemRenderer(bufferSource, 32);
+        List<CompletableFuture<Void>> writes = minecraft.submit(() -> renderable.stream()
+            .map(p -> exportRenderItem(getOutputDir(root, p.getFirst().getNamespace(), subDir), target, renderer, new ItemStack(p.getSecond())))
+            .toList()
+        ).join();
 
-        List<CompletableFuture<?>> list = renderable.stream()
-            .<CompletableFuture<?>>map(p -> {
-                ResourceLocation location = p.getFirst();
-                ItemStack stack = new ItemStack(p.getSecond());
-                Path output = getOutputDir(root, location.getNamespace(), subDir);
-
-                return Minecraft.getInstance().submit(() -> scheduleRender(stack, target, renderer, output));
-            })
-            .toList();
-
-        return CompletableFuture.allOf(list.toArray(CompletableFuture[]::new));
+        CompletableFuture.allOf(writes.toArray(CompletableFuture[]::new)).join();
+        minecraft.submit(target::destroyBuffers).join();
     }
 
-    private void scheduleRender(ItemStack stack, RenderTarget target, SimpleItemRenderer renderer, Path output) {
-        if (this.config.png()) {
-            exportRenderItem(output, target, renderer, stack);
-        }
-    }
-
-    private static void exportRenderItem(Path root, RenderTarget target, SimpleItemRenderer renderer, ItemStack stack) {
+    private static CompletableFuture<Void> exportRenderItem(Path root, RenderTarget target, SimpleItemRenderer renderer, ItemStack stack) {
         ResourceLocation name = stack.getItem().builtInRegistryHolder().key().location();
 
         RenderSystem.enableBlend();
@@ -109,7 +98,7 @@ public class WikiExporterRenderer implements ExporterModule {
         renderer.renderItem(stack);
         target.unbindWrite();
 
-        ImageWriter.writeAsPNG(root, name.getPath(), target, true);
+        return ImageWriter.writeAsPNG(root, name.getPath(), target, true);
     }
 
     private static Path getOutputDir(Path root, String namespace, @Nullable String group) {

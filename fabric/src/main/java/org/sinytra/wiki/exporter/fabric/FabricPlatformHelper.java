@@ -1,8 +1,15 @@
 package org.sinytra.wiki.exporter.fabric;
 
 import net.fabricmc.api.EnvType;
+import net.fabricmc.fabric.impl.resource.loader.ModResourcePackCreator;
+import net.fabricmc.fabric.impl.resource.loader.ModResourcePackUtil;
 import net.fabricmc.loader.api.FabricLoader;
 import net.fabricmc.loader.api.metadata.ModOrigin;
+import net.minecraft.server.WorldLoader;
+import net.minecraft.server.packs.PackType;
+import net.minecraft.server.packs.repository.PackRepository;
+import net.minecraft.server.packs.repository.ServerPacksSource;
+import net.minecraft.world.level.validation.DirectoryValidator;
 import org.sinytra.wiki.exporter.platform.services.IPlatformHelper;
 
 import java.nio.file.Path;
@@ -29,5 +36,14 @@ public class FabricPlatformHelper implements IPlatformHelper {
     @Override
     public boolean isClient() {
         return FabricLoader.getInstance().getEnvironmentType() == EnvType.CLIENT;
+    }
+
+    @Override
+    public WorldLoader.PackConfig createServerPackConfig() {
+        PackRepository repository = new PackRepository(
+            new ServerPacksSource(new DirectoryValidator(path -> true)),
+            new ModResourcePackCreator(PackType.SERVER_DATA)
+        );
+        return new WorldLoader.PackConfig(repository, ModResourcePackUtil.createDefaultDataConfiguration(), false, true);
     }
 }
